@@ -1,0 +1,259 @@
+<!doctype html>
+<html class="no-js" lang="">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="apple-touch-icon" href="apple-touch-icon.png">
+        <!-- Place favicon.ico in the root directory -->
+
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/main.css">
+        <script src="js/vendor/modernizr-2.8.3.min.js"></script>
+
+        <style>
+            body {
+                margin: 0px;
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+            }
+            #example {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+
+    </head>
+    <body>
+        <!--[if lt IE 8]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+        <div id="example"></div>
+
+        <script src="https://code.jquery.com/jquery-{{JQUERY_VERSION}}.min.js"></script>
+        <script>window.jQuery || document.write('<script src="js/vendor/jquery-{{JQUERY_VERSION}}.min.js"><\/script>')</script>
+        <script src="js/plugins.js"></script>
+        <script src="js/main.js"></script>
+
+        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
+        <script>
+            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
+            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
+            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
+            e.src='https://www.google-analytics.com/analytics.js';
+            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
+            ga('create','UA-XXXXX-X','auto');ga('send','pageview');
+        </script>
+
+        <script src="lib/three.js-master/build/three.js"></script>
+        <script src="lib/three.js-master/examples/js/effects/StereoEffect.js"></script>
+        <script src="lib/three.js-master/examples/js/controls/DeviceOrientationControls.js"></script>
+        <script src="lib/three.js-master/examples/js/controls/OrbitControls.js"></script>
+        <script src="lib/three.js-master/examples/js/loaders/OBJLoader.js"></script>
+
+        <script>
+            var camera, scene, renderer;
+            var effect, controls;
+            var element, container;
+
+            var clock = new THREE.Clock();
+
+            var MOVE_MULT = 2;
+            var OBJ_FILE_LOC = "objs/swag6.js";
+            var pressedKeyCodes = [];
+
+
+            init();
+            animate();
+
+            function init() {
+                renderer = new THREE.WebGLRenderer();
+                element = renderer.domElement;
+                container = document.getElementById('example');
+                container.appendChild(element);
+
+                effect = new THREE.StereoEffect(renderer);
+
+                scene = new THREE.Scene();
+
+                camera = new THREE.PerspectiveCamera(90, 1, 0.001, 700);
+                camera.position.set(0, 10, 0);
+                scene.add(camera);
+
+                controls = new THREE.OrbitControls(camera, element);
+                // controls.rotateUp(Math.PI / 4); // older version
+                controls.target.set(
+                    camera.position.x + 0.1,
+                    camera.position.y,
+                    camera.position.z
+                );
+                controls.enableKeys = false;
+                controls.enablePan = false;
+
+                function setOrientationControls(e) {
+                    if (!e.alpha) {
+                        return;
+                    }
+
+                    controls = new THREE.DeviceOrientationControls(camera, true);
+                    controls.connect();
+                    controls.update();
+
+                    element.addEventListener('click', fullscreen, false);
+
+                    window.removeEventListener('deviceorientation', setOrientationControls, true);
+
+                    // add movement controls
+                    window.addEventListener('keydown', function(evt) {
+                        pressedKeyCodes.push(evt.keyCode);
+                    }, true);
+                    window.addEventListener('keyup', function(evt) {
+                        for (var i = 0 ; i < pressedKeyCodes.length; i++) {
+                            if (pressedKeyCodes[i] === evt.keyCode) {
+                                pressedKeyCodes.splice(i, 1);
+                                i--;
+                            }
+                        }
+                    }, true)
+
+                    fullscreen();
+                }
+                window.addEventListener('deviceorientation', setOrientationControls, true);
+
+
+                var light = new THREE.HemisphereLight(0x111111, 0x000000, 0.6);
+                scene.add(light);
+                light = new THREE.PointLight(0xffffff, 0.4, 200);
+                light.position.y = 100;
+                scene.add(light);
+
+                var texture = THREE.ImageUtils.loadTexture(
+                    'textures/patterns/checker.png'
+                );
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat = new THREE.Vector2(50, 50);
+                texture.anisotropy = renderer.getMaxAnisotropy();
+
+                var material = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    specular: 0xffffff,
+                    shininess: 20,
+                    shading: THREE.Shading,
+                    map: texture
+                });
+
+                var geometry = new THREE.PlaneGeometry(1000, 1000);
+
+                var mesh = new THREE.Mesh(geometry, material);
+                mesh.rotation.x = -Math.PI / 2;
+                scene.add(mesh);
+
+                // add object
+                /*
+                new THREE.OBJLoader().load(OBJ_FILE_LOC, function(obj) {
+                    scene.add(obj);
+                });*/
+
+                new THREE.JSONLoader().load(OBJ_FILE_LOC, function(geom, mat) {
+                    var jsonMesh = new THREE.Mesh(geom, new THREE.MeshFaceMaterial(mat));
+                    scene.add(jsonMesh);
+                });
+
+                window.addEventListener('resize', resize, false);
+                setTimeout(resize, 1);
+            }
+
+            function resize() {
+                var width = container.offsetWidth;
+                var height = container.offsetHeight;
+
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+
+                renderer.setSize(width, height);
+                effect.setSize(width, height);
+            }
+
+            function update(dt) {
+                resize();
+
+                camera.updateProjectionMatrix();
+
+                controls.update(dt);
+            }
+
+            function render(dt) {
+                effect.render(scene, camera);
+            }
+
+            function move(dt) {
+                if (pressedKeyCodes.length > 0) {
+                    var isWPressed = false;
+                    var isAPressed = false;
+                    var isSPressed = false;
+                    var isDPressed = false;
+
+                    for (var i = 0; i < pressedKeyCodes.length; i++) {
+                        var keyCode = pressedKeyCodes[i];
+                        if (keyCode == 87) isWPressed = true;
+                        if (keyCode == 65) isAPressed = true;
+                        if (keyCode == 83) isSPressed = true;
+                        if (keyCode == 68) isDPressed = true;
+                    }
+
+                    var cameraLookAtVec = new THREE.Vector3(0, 0, -1);
+                    cameraLookAtVec = cameraLookAtVec.applyQuaternion(camera.quaternion);
+                    cameraLookAtVec.y = 0;
+                    cameraLookAtVec = cameraLookAtVec.normalize();
+                    cameraLookAtVec = cameraLookAtVec.multiplyScalar(MOVE_MULT);
+
+                    if (isWPressed) {
+
+                    } else if (isAPressed) {
+                        cameraLookAtVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI/2);
+                    } else if (isSPressed) {
+                        cameraLookAtVec = cameraLookAtVec.multiplyScalar(-1);
+                    } else if (isDPressed) {
+                        cameraLookAtVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI/2);
+                    } else {
+                        return ;
+                    }
+
+                    camera.position.add(cameraLookAtVec);
+                }
+            }
+
+            function animate(t) {
+                requestAnimationFrame(animate);
+
+                update(clock.getDelta());
+                render(clock.getDelta());
+                move(clock.getDelta);
+            }
+
+            function fullscreen() {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
+                } else if (container.mozRequestFullScreen) {
+                    container.mozRequestFullScreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                }
+            }
+        </script>
+
+    </body>
+</html>
